@@ -54,7 +54,7 @@ The goal of this project is to predict the number of fatigue life cycles (`Nf`) 
 
 ### Steps
 1. Clone the repository:
-git clone https://github.com/yourusername/HPINN-Project.git
+git clone https://github.com/abiriaisaac/HPINN-Project.git
 cd HPINN-Project
 
 Copy
@@ -148,19 +148,19 @@ The **Physics-Informed Neural Network (PINN)** consists of:
 
 ---
 
-## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
 
 ## Acknowledgments
+[3]	Wang L, Zhu S P, Luo C, et al. Defect-driven physics-informed neural network framework for fatigue life prediction of additively manufactured materials[J/OL]. Philosophical Transactions of the Royal Society A: Mathematical, Physical and Engineering Sciences, 2023, 381(2260).
+           https://royalsocietypublishing.org/doi/10.1098/rsta.2022.0386
+Zhang X, Gong S, Wang Y, et al. A modified swt model for very high cycle fatigue life prediction of lpbf ti-6al-4v alloy based on single defect: Effect of building orientation[J/OL]. International Journal of Fatigue, 2024, 188: 108514. https:
+//www.sciencedirect.com/science/article/pii/S0142112324003724.
 
-- **Dataset**: Provided by [source].
-- **References**:
+
+Wang L, Zhu S P, Luo C, et al. Physics-guided machine learning frameworks for fatigue life prediction of am materials[J/OL]. International Journal of Fatigue, 2023, 172: 107658. https://www.sciencedirect.com/science/article/pii/S0142112323001597
 - Basquin's Law and Paris' Law for fatigue life prediction.
 - Physics-Informed Neural Networks (PINNs) for integrating physics into deep learning.
 
 ---
 
-For questions or feedback, please contact [Your Name] at [your.email@example.com].
+For questions or feedback, please contact Isaac Abiria at abiriaisaac@bit.ac.cn.
