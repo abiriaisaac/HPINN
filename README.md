@@ -48,14 +48,7 @@ The goal of this project is to predict the number of fatigue life cycles (`Nf`) 
 
 ## Installation
 
-### Prerequisites
-- Python 3.7 or higher
-- Required Python libraries: `numpy`, `pandas`, `torch`, `scikit-learn`, `scipy`, `matplotlib`
 
-### Steps
-1. Clone the repository:
-git clone https://github.com/abiriaisaac/HPINN-Project.git
-cd HPINN-Project
 
 Copy
 
