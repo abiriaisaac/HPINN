@@ -144,8 +144,10 @@ The **Physics-Informed Neural Network (PINN)** consists of:
 
 
 ## Acknowledgments
-[3]	Wang L, Zhu S P, Luo C, et al. Defect-driven physics-informed neural network framework for fatigue life prediction of additively manufactured materials[J/OL]. Philosophical Transactions of the Royal Society A: Mathematical, Physical and Engineering Sciences, 2023, 381(2260).
-           https://royalsocietypublishing.org/doi/10.1098/rsta.2022.0386
+[Wang L, Zhu S P, Luo C, et al. Defect-driven physics-informed neural network framework for fatigue life prediction of additively manufactured materials[J/OL]. Philosophical Transactions of the Royal Society A: Mathematical, Physical and Engineering Sciences, 2023, 381(2260).
+https://royalsocietypublishing.org/doi/10.1098/rsta.2022.0386
+
+
 Zhang X, Gong S, Wang Y, et al. A modified swt model for very high cycle fatigue life prediction of lpbf ti-6al-4v alloy based on single defect: Effect of building orientation[J/OL]. International Journal of Fatigue, 2024, 188: 108514. https:
 //www.sciencedirect.com/science/article/pii/S0142112324003724.
 
