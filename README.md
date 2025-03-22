@@ -1,0 +1,1 @@
+# Prediction_of-_fatigue_life_using_Hybrid_Physics_Informed_Neural_Netwprk-HPINN-
