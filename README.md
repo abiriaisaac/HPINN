@@ -148,8 +148,7 @@ The **Physics-Informed Neural Network (PINN)** consists of:
 https://royalsocietypublishing.org/doi/10.1098/rsta.2022.0386
 
 
-Zhang X, Gong S, Wang Y, et al. A modified swt model for very high cycle fatigue life prediction of lpbf ti-6al-4v alloy based on single defect: Effect of building orientation[J/OL]. International Journal of Fatigue, 2024, 188: 108514. https:
-//www.sciencedirect.com/science/article/pii/S0142112324003724.
+Zhang X, Gong S, Wang Y, et al. A modified swt model for very high cycle fatigue life prediction of lpbf ti-6al-4v alloy based on single defect: Effect of building orientation[J/OL]. International Journal of Fatigue, 2024, 188: 108514. https://www.sciencedirect.com/science/article/pii/S0142112324003724.
 
 
 Wang L, Zhu S P, Luo C, et al. Physics-guided machine learning frameworks for fatigue life prediction of am materials[J/OL]. International Journal of Fatigue, 2023, 172: 107658. https://www.sciencedirect.com/science/article/pii/S0142112323001597
