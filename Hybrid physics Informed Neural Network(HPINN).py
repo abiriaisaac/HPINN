@@ -6,28 +6,30 @@ Beijing Institute of Technology
 @author: Abiria_Isaac
 """
 
-import numpy as np
-import pandas as pd
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from sklearn.metrics import mean_absolute_percentage_error, r2_score
-from sklearn.model_selection import train_test_split
-from scipy.optimize import curve_fit
-import matplotlib.pyplot as plt
+# Import necessary libraries for numerical operations, machine learning, and visualization
+import numpy as np  # For numerical operations
+import pandas as pd  # For data manipulation and analysis
+import torch  # PyTorch for deep learning
+import torch.nn as nn  # Neural network modules
+import torch.optim as optim  # Optimization algorithms
+from sklearn.metrics import mean_absolute_percentage_error, r2_score  # Evaluation metrics
+from sklearn.model_selection import train_test_split  # For splitting data into train/test sets
+from scipy.optimize import curve_fit  # For curve fitting
+import matplotlib.pyplot as plt  # For plotting
 
-# Set global plot settings
+# Set global plot settings for consistent visualization style
 plt.rcParams.update({
-    'font.size': 14,
-    'font.weight': 'bold',
-    'font.family': 'serif'
+    'font.size': 14,  # Default font size
+    'font.weight': 'bold',  # Bold font
+    'font.family': 'serif'  # Serif font family
 })
 
 # ----------------------------
 # Data Loading
 # ----------------------------
 
-# Load data
+# Load data 
+# Load the primary dataset (other datasets are commented out)
 data = pd.read_csv('Data1.csv')  # AM Al-Mg4.5Mn Wang et al [3]
 #data = pd.read_csv('Data2.csv')  # AM Al-Mg4.5Mn Wang et al [63]
 #data = pd.read_csv('Fu90_degrees.csv')  # AM Ti-6Al-4V et al (Zhang [96])
@@ -41,86 +43,99 @@ data = pd.read_csv('Data1.csv')  # AM Al-Mg4.5Mn Wang et al [3]
 # Data Preprocessing
 # ----------------------------
 
-# Extract data
-Nf = data['cycle'].values
-defect_size = data['defect_size'].values
-delta_sigma = data['stress'].values
+# Extract data columns from the dataframe
+Nf = data['cycle'].values  # Fatigue life cycles
+defect_size = data['defect_size'].values  # Defect size values
+delta_sigma = data['stress'].values  # Stress amplitude values
 
-# Calculate delta_K0 and Nf_area
-Y = 0.5
-delta_K0 = Y * delta_sigma * np.sqrt(np.pi * defect_size)
-Nf_area = Nf / defect_size
+# Calculate the stress Intensity Factor (delta_K0) using the Murakami Model
+#Y = 0.5 #for Internal defects
+Y=0.65  # Geometric factor for surface defect
+delta_K0 = Y * delta_sigma * np.sqrt(np.pi * defect_size)  # Calculate stress intensity factor
+Nf_area = Nf / defect_size  # Calculate cycles per unit defect size according to Modified Paris Law.
 
-# Define fitting functions
+# Define fitting functions for Paris and Basquin laws
 def fit_func(delta_K0, a_p, b_p):
-    return a_p * delta_K0 ** b_p
+    return a_p * delta_K0 ** b_p  # Paris law fitting function
 
 def basquin_func(Nf, sigma_f_prime, b):
-    return sigma_f_prime * (Nf ** b)
+    return sigma_f_prime * (Nf ** b)  # Basquin law fitting function
 
-# Fit Basquin's and Paris' curves
-basquin_params, _ = curve_fit(basquin_func, Nf, delta_sigma)
-sigma_f_prime, b_basquin = basquin_params
+# Fit Basquin's and Paris' curves to the data
+basquin_params, _ = curve_fit(basquin_func, Nf, delta_sigma)  # Fit Basquin curve
+sigma_f_prime, b_basquin = basquin_params  # Extract Basquin parameters
 
-paris_params, _ = curve_fit(fit_func, delta_K0, Nf_area, maxfev=2000)  # Increase maxfev
-a_paris, b_paris = paris_params
-m = -b_paris
-C = 1 / (a_paris * (1 - b_paris / 2))
+paris_params, _ = curve_fit(fit_func, delta_K0, Nf_area, maxfev=2000)  # Fit Paris curve with increased iterations
+a_paris, b_paris = paris_params  # Extract Paris parameters
+m = -b_paris  # Calculate Paris exponent
+C = 1 / (a_paris * (1 - b_paris / 2))  # Calculate Paris constant
 
 # Prepare data for neural networks
-X = data[['stress', 'defect_size']].values  # Stress amplitude and defect size are the inputs
-y = data[['cycle']].values  # Number of cycles is the output
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)  # Split data into training and testing sets
+X = data[['stress', 'defect_size']].values  # Input features (stress and defect size)
+y = data[['cycle']].values  # Target variable (cycles to failure)
+# Split data into training and testing sets (80-20 split)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Normalize data
+# Normalize data function definition
 def normalize(X_train, X_test, y_train, y_test):
+    # Calculate mean and standard deviation for features and target
     X_mean = np.mean(X_train, axis=0)
     X_std = np.std(X_train, axis=0)
     y_mean = np.mean(y_train)
     y_std = np.std(y_train)
     
+    # Normalize training and test data
     X_train_normalized = (X_train - X_mean) / X_std
     X_test_normalized = (X_test - X_mean) / X_std
     y_train_normalized = (y_train - y_mean) / y_std
     y_test_normalized = (y_test - y_mean) / y_std
     
+    # Return normalized data and normalization parameters
     return X_train_normalized, X_test_normalized, y_train_normalized, y_test_normalized, X_mean, X_std, y_mean, y_std
 
 # ----------------------------
 # Model Definition
 # ----------------------------
 
+# Physics-Informed Neural Network (PINN) class definition
 class PINN(nn.Module):
     def __init__(self, use_basquin=True, use_paris=True, use_non_neg=True):
         super(PINN, self).__init__()
+        # Flags for which physics constraints to use
         self.use_basquin = use_basquin
         self.use_paris = use_paris
         self.use_non_neg = use_non_neg
 
-        self.fc1 = nn.Linear(2, 63)  # ANN section
-        self.fc2 = nn.Linear(63, 63)
-        self.fc3 = nn.Linear(63, 63)
+        # Main neural network layers
+        self.fc1 = nn.Linear(2, 63)  # First fully connected layer (input to hidden)
+        self.fc2 = nn.Linear(63, 63)  # Second fully connected layer
+        self.fc3 = nn.Linear(63, 63)  # Third fully connected layer
         
+        # Physics-informed branches
         if use_basquin:
-            self.phys_fc1_basquin = nn.Linear(63, 21)  # Basquin branch
+            self.phys_fc1_basquin = nn.Linear(63, 21)  # Basquin physics branch
             self.phys_fc2_basquin = nn.Linear(21, 21)
         
         if use_paris:
-            self.phys_fc1_paris = nn.Linear(63, 21)  # Modified Paris Law branch
+            self.phys_fc1_paris = nn.Linear(63, 21)  # Paris physics branch
             self.phys_fc2_paris = nn.Linear(21, 21)
         
         if use_non_neg:
-            self.phys_fc1_non_neg = nn.Linear(63, 21)  # Non-negative branch
+            self.phys_fc1_non_neg = nn.Linear(63, 21)  # Non-negativity branch
             self.phys_fc2_non_neg = nn.Linear(21, 21)
         
+        # Determine output dimension based on active branches
         output_dim = sum([21 for use in [use_basquin, use_paris, use_non_neg] if use])
-        self.fc_final = nn.Linear(max(output_dim, 1), 1)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.3)
-        self.batch_norm1 = nn.BatchNorm1d(63)  # Batch Normalization to prevent overfitting
+        self.fc_final = nn.Linear(max(output_dim, 1), 1)  # Final output layer
+        
+        # Activation and regularization components
+        self.relu = nn.ReLU()  # ReLU activation function
+        self.dropout = nn.Dropout(0.3)  # Dropout for regularization
+        self.batch_norm1 = nn.BatchNorm1d(63)  # Batch normalization
         self.batch_norm2 = nn.BatchNorm1d(63)
     
     def forward(self, x):
+        # Forward pass through main network
         x = self.relu(self.fc1(x))
         x = self.batch_norm1(x)
         x = self.dropout(x)
@@ -129,6 +144,7 @@ class PINN(nn.Module):
         x = self.dropout(x)
         x = self.relu(self.fc3(x))
         
+        # Physics-informed branches processing
         phys_outputs = []
         
         if self.use_basquin:
@@ -146,9 +162,9 @@ class PINN(nn.Module):
             x_phys_non_neg2 = self.relu(self.phys_fc2_non_neg(x_phys_non_neg))
             phys_outputs.append(x_phys_non_neg2)
         
-        # Concatenation Layer
+        # Combine physics branch outputs
         x_phys_combined = torch.cat(phys_outputs, dim=1) if phys_outputs else torch.zeros(x.size(0), 1, device=x.device)
-        x_out = self.fc_final(x_phys_combined)
+        x_out = self.fc_final(x_phys_combined)  # Final output
         
         return x_out
 
@@ -157,37 +173,46 @@ class PINN(nn.Module):
 # ----------------------------
 
 def train_model_with_early_stopping(model, loss_fn, X_train, y_train, X_val, y_val, batch_size=5, max_epochs=3000, patience=1000, print_interval=100):
+    # Initialize optimizer and learning rate scheduler
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.8)
+    
+    # Create data loader for batch training
     dataset = torch.utils.data.TensorDataset(X_train, y_train)
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
     
+    # Early stopping variables
     best_loss = float('inf')
     epochs_no_improve = 0
     
+    # Training loop
     for epoch in range(max_epochs):
-        model.train()
+        model.train()  # Set model to training mode
+        # Batch training
         for X_batch, y_batch in data_loader:
-            optimizer.zero_grad()
-            output = model(X_batch)
-            loss = loss_fn(output, y_batch)
-            loss.backward()
-            optimizer.step()
+            optimizer.zero_grad()  # Clear gradients
+            output = model(X_batch)  # Forward pass
+            loss = loss_fn(output, y_batch)  # Calculate loss
+            loss.backward()  # Backpropagation
+            optimizer.step()  # Update weights
         
-        scheduler.step()
+        scheduler.step()  # Update learning rate
         
-        model.eval()
+        # Validation
+        model.eval()  # Set model to evaluation mode
         with torch.no_grad():
             val_output = model(X_val)
             val_loss = loss_fn(val_output, y_val)
         
+        # Print training progress
         if epoch % print_interval == 0:
             print(f'Epoch {epoch}, Loss: {loss.item():.4f}, Val Loss: {val_loss.item():.4f}')
         
+        # Early stopping check
         if val_loss < best_loss:
             best_loss = val_loss
             epochs_no_improve = 0
-            torch.save(model.state_dict(), 'best_model.pth')
+            torch.save(model.state_dict(), 'best_model.pth')  # Save best model
         else:
             epochs_no_improve += 1
         
@@ -202,7 +227,7 @@ def train_model_with_early_stopping(model, loss_fn, X_train, y_train, X_val, y_v
 # Normalize data
 X_train_normalized, X_test_normalized, y_train_normalized, y_test_normalized, X_mean, X_std, y_mean, y_std = normalize(X_train, X_test, y_train, y_test)
 
-# Convert to tensors
+# Convert numpy arrays to PyTorch tensors
 X_train_tensor = torch.tensor(X_train_normalized, dtype=torch.float32)
 X_test_tensor = torch.tensor(X_test_normalized, dtype=torch.float32)
 y_train_tensor = torch.tensor(y_train_normalized, dtype=torch.float32)
@@ -212,16 +237,16 @@ y_test_tensor = torch.tensor(y_test_normalized, dtype=torch.float32)
 pinn_model = PINN(use_basquin=True, use_paris=True, use_non_neg=True)
 train_model_with_early_stopping(pinn_model, nn.MSELoss(), X_train_tensor, y_train_tensor, X_test_tensor, y_test_tensor, batch_size=10, max_epochs=3000, patience=100, print_interval=100)
 
-# Load the best model
+# Load the best saved model
 pinn_model.load_state_dict(torch.load('best_model.pth'))
-pinn_model.eval()
+pinn_model.eval()  # Set model to evaluation mode
 
 # Make predictions
 with torch.no_grad():
     y_pred_train_pinn = pinn_model(X_train_tensor)
     y_pred_test_pinn = pinn_model(X_test_tensor)
 
-# Denormalize predictions
+# Denormalize predictions and targets for evaluation
 y_pred_train_pinn = y_pred_train_pinn * y_std + y_mean
 y_pred_test_pinn = y_pred_test_pinn * y_std + y_mean
 y_train_tensor = y_train_tensor * y_std + y_mean
@@ -237,10 +262,10 @@ test_mape_pinn = mean_absolute_percentage_error(y_test_tensor.numpy(), y_pred_te
 # Visualization
 # ----------------------------
 
-# Plot R² and MAPE scores
+# Create figure for metrics visualization
 plt.figure(figsize=(12, 6))
 
-# R² Scores
+# R² Scores subplot
 plt.subplot(1, 2, 1)
 r2_scores = [train_r2_pinn, test_r2_pinn]
 r2_labels = ['Train PINN', 'Test PINN']
@@ -249,12 +274,12 @@ plt.title('R² Scores')
 plt.ylabel('R² Score')
 plt.grid(True, linestyle='--')
 
-# Annotate R² bars
+# Annotate R² bars with values
 for bar in bars_r2:
     yval = bar.get_height()
     plt.text(bar.get_x() + bar.get_width() / 2, yval, f'{yval:.2f}', va='bottom', ha='center')
 
-# MAPE Scores
+# MAPE Scores subplot
 plt.subplot(1, 2, 2)
 mape_scores = [train_mape_pinn, test_mape_pinn]
 mape_labels = ['Train PINN', 'Test PINN']
@@ -263,7 +288,7 @@ plt.title('MAPE Scores')
 plt.ylabel('MAPE')
 plt.grid(True, linestyle='--')
 
-# Annotate MAPE bars
+# Annotate MAPE bars with values
 for bar in bars_mape:
     yval = bar.get_height()
     plt.text(bar.get_x() + bar.get_width() / 2, yval, f'{yval:.2f}', va='bottom', ha='center')
@@ -271,7 +296,7 @@ for bar in bars_mape:
 plt.tight_layout()
 plt.show()
 
-# Save results to Excel
+# Save results to Excel file
 results_train = pd.DataFrame({
     'Data Split': 'Train',
     'Stress (MPa)': X_train[:, 0],
@@ -288,22 +313,23 @@ results_test = pd.DataFrame({
     'Predicted Cycles (HPINN)': y_pred_test_pinn.detach().numpy().flatten()
 })
 
+# Combine and save results
 results_combined = pd.concat([results_train, results_test], ignore_index=True)
-results_combined.to_excel('HPINN_Predictions1.xlsx', index=False)
-print("Predictions saved to HPINN_Predictions.xlsx")#Store according to each dataset.
+results_combined.to_excel('HPINN_Predictions.xlsx', index=False)
+print("Predictions saved to HPINN_Predictions.xlsx")
 
 # Plot Experimental vs Predicted Cycles
 plt.figure(figsize=(8, 8))
 
-# Scatter plots for train and test data
+# Scatter plots for actual vs predicted values
 plt.scatter(y_train_tensor.numpy(), y_pred_train_pinn.detach().numpy(), color='blue', label='Train Data', alpha=0.7)
 plt.scatter(y_test_tensor.numpy(), y_pred_test_pinn.detach().numpy(), color='red', label='Test Data', alpha=0.7)
 
 # Perfect prediction line
-perfect_line = np.array([45000, 3500000])  # Adjust as needed
+perfect_line = np.array([45000, 3500000])  # Range for perfect prediction line
 plt.plot(perfect_line, perfect_line, 'k--', label='Perfect Prediction')
 
-# Add 2-factor and 3-factor bands
+# Add 2-factor and 3-factor bands for error visualization
 upper_band_2 = perfect_line * 2
 lower_band_2 = perfect_line / 2
 plt.fill_between(perfect_line, lower_band_2, upper_band_2, color='blue', alpha=0.2, label='2-Factor Band')
@@ -312,11 +338,11 @@ upper_band_3 = perfect_line * 3
 lower_band_3 = perfect_line / 3
 plt.fill_between(perfect_line, lower_band_3, upper_band_3, color='gray', alpha=0.3, label='3-Factor Band')
 
-# Set scales and labels (Adjust accordingly depending on the predictions.)
+# Configure plot appearance
 plt.xlim(45000, 3500000)
 plt.ylim(45000, 3500000)
-plt.xscale('log')
-plt.yscale('log')
+plt.xscale('log')  # Log scale for x-axis
+plt.yscale('log')  # Log scale for y-axis
 plt.xlabel('Experimental Cycles', fontsize=12, weight='bold')
 plt.ylabel('Predicted Cycles', fontsize=12, weight='bold')
 plt.title('HPINN - Experimental vs Predicted Fatigue Life Cycles', fontsize=14, weight='bold')
